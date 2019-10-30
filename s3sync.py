@@ -5,6 +5,10 @@ import boto3
 from botocore.client import ClientError
 import click
 
+print("\n\n -----------------------------------------------------")
+print(" | s3sync - Upload deze directory naar een s3 bucket | ")
+print(" -----------------------------------------------------\n\n")
+
 # Get current  wd
 workingdirectory = os.getcwd()
 
@@ -43,16 +47,18 @@ def sync(directory, endpoint, bucket, accesskey, secretkey):
     # Init the s3 client
     client = boto3.client('s3', verify=False, aws_access_key_id=accesskey, aws_secret_access_key=secretkey, endpoint_url=endpoint)
 
+    print('Verbinding gemaakt met %s\n\n' % (endpoint))
+
     # Check bucket exists
-    print('Checking if bucket "%s" exists...' % (bucket))
+    print('Checken of "%s" bucket bestaat...' % (bucket))
     try:
         client.head_bucket(Bucket=bucket)
-        print('Check!')
+        print("Check!\n")
     except ClientError:
         # The bucket does not exist, create it
-        print('Creating bucket "%s"...' % (bucket))
+        print('Maak bucket "%s" aan...' % (bucket))
         client.create_bucket(Bucket=bucket)
-        print('Bucket "%s" created!' % (bucket))
+        print('Bucket "%s" aangemaakt!\n' % (bucket))
 
     # enumerate local files recursively
     for root, dirs, files in os.walk(directory, topdown=True):
@@ -64,7 +70,7 @@ def sync(directory, endpoint, bucket, accesskey, secretkey):
 
             # Check against ignore
             if filename in ignorelist:
-                print(' - "%s" in ignore list, skipping...' % (filename))
+                print(' - "%s" in ingore lijst, overslaan...' % (filename))
                 continue
 
             # construct the full local path
@@ -74,9 +80,6 @@ def sync(directory, endpoint, bucket, accesskey, secretkey):
             relative_path = os.path.relpath(local_path, directory)
             s3_path = os.path.join(relative_path)
 
-            # check file exists on s3
-            print(' - Checking "%s" in "%s"' % (s3_path, bucket))
-                
             # Get file properties if it exists
             s3file = False
             try:
@@ -88,15 +91,15 @@ def sync(directory, endpoint, bucket, accesskey, secretkey):
             if s3file:
                 # Compare size, continue if same
                 if os.path.getsize(local_path) == s3file['ContentLength']:
-                    print("   File \"%s\" found on S3 and has same size! Skipping..." % s3_path)
+                    print(" - \"%s\" bestaat al. Overslaan..." % s3_path)
                     continue
                 else:
                     # Throw execption to trigger upload
-                    print("   File \"%s\" found on S3 but different size:" % s3_path)
+                    print(" - \"%s\" bestaat al maar met andere omvang:" % s3_path)
                     #raise Exception('File sizes differ') 
 
             # File not present or different size
-            print("   Uploading %s..." % s3_path)
+            print("   Uploaden %s..." % s3_path)
             client.upload_file(local_path, bucket, s3_path)
 
 # Main
